@@ -4,4 +4,4 @@ api.secret
 .wrangler/
 .DS_Store
 coverage/
-api.secret
+*.secret

@@ -26,7 +26,8 @@ setCurrentYear();
 showLoadingState();
 
 init().catch((err) => {
-  upcomingEmpty.textContent = `Failed to load seminars: ${err.message}`;
+  console.error("Unable to load seminars", err);
+  upcomingEmpty.textContent = "The seminar programme is temporarily unavailable. Please try again shortly.";
   upcomingEmpty.classList.remove("hidden");
   pastEmpty.classList.add("hidden");
 });
@@ -419,8 +420,8 @@ function renderHeroFeature(upcoming, archivedCount) {
     heroNextDate.textContent = "To be announced";
     heroFeatureCard.innerHTML = `
       <div class="hero-feature-empty">
-        <p id="hero-feature-title" class="hero-feature-title">New seminars will appear here.</p>
-        <p class="hero-feature-copy">As soon as the sheet is updated, the next confirmed date will be featured in this space.</p>
+        <p id="hero-feature-title" class="hero-feature-title">The next seminar will be announced here.</p>
+        <p class="hero-feature-copy">Please check back for the next confirmed date.</p>
       </div>
     `;
     return;

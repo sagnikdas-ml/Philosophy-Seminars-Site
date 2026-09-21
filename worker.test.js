@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fingerprint, parseCsv, validateEvent } from "./worker.js";
+import worker, { EVENT_FIELDS, fingerprint, parseCsv, validateEvent } from "./worker.js";
 
 test("CSV parser preserves commas, escaped quotes, and multiline abstracts", () => {
   const rows = parseCsv('date,speaker,title,abstract\r\n2026-10-01,"Doe, Jane","On ""method""","Line one\nLine two"\r\n');
@@ -38,4 +38,24 @@ test("fingerprints are stable and cover event content", async () => {
   assert.match(first, /^[a-f0-9]{64}$/);
   assert.equal(first, same);
   assert.notEqual(first, changed);
+});
+
+test("an empty CSV feed parses as an empty seminar list", () => {
+  assert.deepEqual(parseCsv("date,speaker,title\n"), []);
+  assert.deepEqual(parseCsv(""), []);
+});
+
+test("an empty upstream sheet becomes a valid header-only public feed", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("");
+  try {
+    const response = await worker.fetch(new Request("https://seminars.example/api/seminars.csv"), {
+      GOOGLE_SHEET_CSV_URL: "https://docs.google.com/example.csv",
+    });
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), `${EVENT_FIELDS.join(",")}\n`);
+    assert.match(response.headers.get("cache-control"), /max-age=60/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

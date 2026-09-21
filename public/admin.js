@@ -1,4 +1,8 @@
 const API = "/api/admin";
+const DEFAULT_VENUE = "Department Liberal Arts and Social Sciences, Ulmenstraße 52i, Meetingroom 32";
+const DEFAULT_MEETING_URL = "https://utn-de.zoom.us/j/63489126627?pwd=yDamnnbZTu0lfNauqurO3OEalHIKO1.1";
+const DEFAULT_START_TIME = "17:00";
+const DEFAULT_END_TIME = "19:00";
 const EVENT_FIELDS = [
   "date", "speaker", "title", "link", "speaker_detail", "speaker_portfolio",
   "time", "end_time", "timezone", "venue", "abstract", "published",
@@ -178,6 +182,10 @@ function beginEdit(item) {
 function resetEditor() {
   elements.form.reset();
   document.getElementById("timezone").value = "Europe/Berlin";
+  document.getElementById("venue").value = DEFAULT_VENUE;
+  document.getElementById("link").value = DEFAULT_MEETING_URL;
+  document.getElementById("time").value = DEFAULT_START_TIME;
+  document.getElementById("end_time").value = DEFAULT_END_TIME;
   document.getElementById("published").value = "yes";
   elements.row.value = "";
   elements.fingerprint.value = "";

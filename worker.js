@@ -33,8 +33,8 @@ async function handlePublicFeed(request, env) {
       cf: { cacheEverything: true, cacheTtl: 60 },
     });
     if (!upstream.ok) return textResponse(`Google Sheet request failed: HTTP ${upstream.status}`, 502);
-    const csv = await upstream.text();
-    if (!csv.trim()) return textResponse("Google Sheet feed is empty", 502);
+    const upstreamCsv = await upstream.text();
+    const csv = upstreamCsv.trim() ? upstreamCsv : `${EVENT_FIELDS.join(",")}\n`;
     return new Response(request.method === "HEAD" ? null : csv, {
       headers: {
         "content-type": "text/csv; charset=utf-8",

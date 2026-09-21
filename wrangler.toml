@@ -1,10 +1,11 @@
-name = "early-modern-lab-seminars"
+name = "philosophy-seminars-site"
 main = "worker.js"
 compatibility_date = "2026-09-21"
 
 [vars]
 # The published CSV export for the same sheet used by Apps Script.
 GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1lb5uZfeaZEmB-ZH7DwzFFtzEIX2ItcwUX8Mvza0pxp0/export?format=csv&gid=0"
+GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhI1tXUDfDatP-kTC3AwW52abv2B2BOXd6Hg97Nh0DdFgEtdsZUnVCdCwwlg_0p-8/exec"
 
 [assets]
 directory = "./public"
