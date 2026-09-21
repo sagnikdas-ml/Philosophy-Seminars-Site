@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Research Seminar of the Early Modern Lab</title>
+  <meta name="description" content="Upcoming talks and archive of the Research Seminar of the Early Modern Lab.">
+  <meta name="theme-color" content="#1c6d6d">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#program">Skip to program</a>
+  <div class="page-wash" aria-hidden="true"></div>
+
+  <header class="hero container">
+    <nav class="topbar" aria-label="Primary navigation">
+      <a class="wordmark" href="/">
+        <span class="wordmark-mark" aria-hidden="true">EM</span>
+        <span>Early Modern Lab</span>
+      </a>
+      <a class="quiet-link" href="./admin.html">Professor access</a>
+    </nav>
+
+    <div class="hero-grid">
+      <div class="hero-copy-block">
+        <p class="eyebrow">Research seminar series</p>
+        <h1 class="hero-title">Research Seminar of the <em>Early Modern Lab</em></h1>
+        <p class="hero-copy">
+          Conversations on early modern philosophy, the sciences, and the many forms in which ideas travelled.
+        </p>
+        <p class="host-inline">
+          Convened by <a class="speaker-portfolio-link" href="https://danajalobeanu.com/" target="_blank" rel="noopener noreferrer">Prof. Dana Jalobeanu</a>
+        </p>
+        <div class="hero-notes" role="group" aria-label="Seminar overview">
+          <div class="hero-note">
+            <span class="hero-note-label">Current series</span>
+            <strong id="hero-series-count">Loading seminars</strong>
+          </div>
+          <div class="hero-note">
+            <span class="hero-note-label">Next date</span>
+            <strong id="hero-next-date">To be announced</strong>
+          </div>
+        </div>
+      </div>
+
+      <aside class="hero-feature panel panel-hero" aria-labelledby="hero-feature-title">
+        <p class="hero-feature-label">Next seminar</p>
+        <div id="hero-feature-card" class="hero-feature-card">
+          <p id="hero-feature-title" class="hero-feature-title">Loading upcoming seminar…</p>
+          <p class="hero-feature-copy">The next confirmed talk will appear here automatically.</p>
+        </div>
+      </aside>
+    </div>
+  </header>
+
+  <main id="program" class="container">
+    <section class="panel panel-program">
+      <div class="panel-head">
+        <div>
+          <p class="section-kicker">Program</p>
+          <h2>Further upcoming seminars</h2>
+        </div>
+      </div>
+      <div id="upcoming-list" class="cards"></div>
+      <p id="upcoming-empty" class="empty hidden">No upcoming seminars yet. Please check back soon.</p>
+    </section>
+
+    <section class="panel panel-archive">
+      <div class="panel-head">
+        <div>
+          <p class="section-kicker">Archive</p>
+          <h2>Past seminars</h2>
+        </div>
+      </div>
+      <div id="past-list" class="cards cards-past archive-list"></div>
+      <p id="past-empty" class="empty hidden">No past seminars.</p>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <p>&copy; <span id="copyright-year"></span> Early Modern Lab.</p>
+    <a class="quiet-link" href="./admin.html">Manage seminars</a>
+  </footer>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>

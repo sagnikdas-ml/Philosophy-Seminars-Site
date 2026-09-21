@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage seminars · Early Modern Lab</title>
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#1c6d6d">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="admin-body">
+  <div class="page-wash" aria-hidden="true"></div>
+  <header class="admin-header container">
+    <nav class="topbar" aria-label="Primary navigation">
+      <a class="wordmark" href="/">
+        <span class="wordmark-mark" aria-hidden="true">EM</span>
+        <span>Early Modern Lab</span>
+      </a>
+      <a class="quiet-link" href="/">View public site</a>
+    </nav>
+    <div class="admin-title-row">
+      <div>
+        <p class="eyebrow">Professor workspace</p>
+        <h1>Manage the seminar program</h1>
+        <p class="admin-lede">Add, revise, publish, or remove events here. Saved changes are written directly to the seminar Google Sheet.</p>
+      </div>
+      <button id="logout-button" class="button button-secondary hidden" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="login-view" class="panel auth-card" aria-labelledby="login-title">
+      <h2 id="login-title">Professor access</h2>
+      <p>Enter the seminar management password. The password is verified by the Cloudflare Worker and is never stored in this browser.</p>
+      <form id="login-form" class="event-form">
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="form-actions">
+          <button class="button button-primary" type="submit">Unlock editor</button>
+        </div>
+        <p id="login-status" class="status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section id="dashboard" class="admin-grid hidden" aria-label="Seminar editor">
+      <section class="panel editor-panel" aria-labelledby="editor-title">
+        <div class="panel-toolbar">
+          <div>
+            <p class="section-kicker">Event editor</p>
+            <h2 id="editor-title">Add seminar</h2>
+          </div>
+          <button id="new-event-button" class="button button-quiet hidden" type="button">Clear form</button>
+        </div>
+        <form id="event-form" class="event-form">
+          <input id="record-row" type="hidden">
+          <input id="record-fingerprint" type="hidden">
+          <div class="form-grid">
+            <div class="field">
+              <label for="date">Date *</label>
+              <input id="date" name="date" type="date" required>
+            </div>
+            <div class="field">
+              <label for="published">Visibility</label>
+              <select id="published" name="published">
+                <option value="yes">Published</option>
+                <option value="no">Draft</option>
+              </select>
+            </div>
+            <div class="field field-wide">
+              <label for="title">Talk title *</label>
+              <input id="title" name="title" type="text" required maxlength="1000">
+            </div>
+            <div class="field">
+              <label for="speaker">Speaker *</label>
+              <input id="speaker" name="speaker" type="text" required maxlength="1000">
+            </div>
+            <div class="field">
+              <label for="speaker_detail">Affiliation or detail</label>
+              <input id="speaker_detail" name="speaker_detail" type="text" maxlength="1000">
+            </div>
+            <div class="field field-wide">
+              <label for="speaker_portfolio">Speaker profile URL</label>
+              <input id="speaker_portfolio" name="speaker_portfolio" type="url" placeholder="https://…" maxlength="1000">
+            </div>
+            <div class="field">
+              <label for="time">Start time <span class="hint">24-hour</span></label>
+              <input id="time" name="time" type="time">
+            </div>
+            <div class="field">
+              <label for="end_time">End time <span class="hint">24-hour</span></label>
+              <input id="end_time" name="end_time" type="time">
+            </div>
+            <div class="field">
+              <label for="timezone">Time zone</label>
+              <input id="timezone" name="timezone" type="text" value="Europe/Berlin" maxlength="1000">
+            </div>
+            <div class="field">
+              <label for="venue">Venue</label>
+              <input id="venue" name="venue" type="text" maxlength="1000">
+            </div>
+            <div class="field field-wide">
+              <label for="link">Online meeting or registration URL</label>
+              <input id="link" name="link" type="url" placeholder="https://…" maxlength="1000">
+            </div>
+            <div class="field field-wide">
+              <label for="abstract">Abstract</label>
+              <textarea id="abstract" name="abstract" maxlength="12000"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button id="save-button" class="button button-primary" type="submit">Add seminar</button>
+            <button id="cancel-edit-button" class="button button-secondary hidden" type="button">Cancel edit</button>
+          </div>
+          <p id="editor-status" class="status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="events-title">
+        <div class="panel-toolbar">
+          <div>
+            <p class="section-kicker">Google Sheet</p>
+            <h2 id="events-title">All seminars</h2>
+          </div>
+          <button id="refresh-button" class="button button-secondary" type="button">Refresh</button>
+        </div>
+        <p id="list-status" class="status" role="status" aria-live="polite">Loading seminars…</p>
+        <div id="admin-events" class="admin-events"></div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="delete-dialog" aria-labelledby="delete-title">
+    <div class="dialog-content">
+      <h2 id="delete-title">Delete this seminar?</h2>
+      <p id="delete-copy">This permanently removes the row from the Google Sheet.</p>
+      <div class="dialog-actions">
+        <button id="delete-cancel" class="button button-secondary" type="button">Keep seminar</button>
+        <button id="delete-confirm" class="button button-danger" type="button">Delete seminar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <noscript><p class="container noscript">JavaScript is required to manage seminars.</p></noscript>
+  <script src="./admin.js" defer></script>
+</body>
+</html>
