@@ -24,8 +24,8 @@
     <div class="admin-title-row">
       <div>
         <p class="eyebrow">Professor workspace</p>
-        <h1>Manage the seminar program</h1>
-        <p class="admin-lede">Add, revise, publish, or remove events here. Saved changes are written directly to the seminar Google Sheet.</p>
+        <h1>Manage seminars</h1>
+        <p class="admin-lede">Choose a seminar to edit, or add a new one.</p>
       </div>
       <button id="logout-button" class="button button-secondary hidden" type="button">Sign out</button>
     </div>
@@ -34,7 +34,7 @@
   <main class="container">
     <section id="login-view" class="panel auth-card" aria-labelledby="login-title">
       <h2 id="login-title">Professor access</h2>
-      <p>Enter the seminar management password. The password is verified by the Cloudflare Worker and is never stored in this browser.</p>
+      <p>Enter your seminar management password to continue.</p>
       <form id="login-form" class="event-form">
         <div class="field">
           <label for="password">Password</label>
@@ -48,96 +48,118 @@
     </section>
 
     <section id="dashboard" class="admin-grid hidden" aria-label="Seminar editor">
-      <section class="panel editor-panel" aria-labelledby="editor-title">
+      <section id="events-panel" class="panel" aria-labelledby="events-title">
+        <div class="panel-toolbar">
+          <div>
+            <p class="section-kicker">Seminar program</p>
+            <h2 id="events-title">All seminars</h2>
+          </div>
+          <div class="panel-toolbar-actions">
+            <button id="refresh-button" class="button button-secondary" type="button">Refresh</button>
+            <button id="new-event-button" class="button button-primary" type="button">Add seminar</button>
+          </div>
+        </div>
+        <p id="list-status" class="status" role="status" aria-live="polite">Loading seminars…</p>
+        <div id="admin-events" class="admin-events"></div>
+      </section>
+
+      <section id="editor-panel" class="panel editor-panel hidden" aria-labelledby="editor-title">
         <div class="panel-toolbar">
           <div>
             <p class="section-kicker">Event editor</p>
             <h2 id="editor-title">Add seminar</h2>
           </div>
-          <button id="new-event-button" class="button button-quiet hidden" type="button">Clear form</button>
+          <div class="panel-toolbar-actions">
+            <button id="editor-back-button" class="button button-secondary" type="button">Back to all seminars</button>
+            <button id="save-top-button" class="button button-primary" type="submit" form="event-form">Add seminar</button>
+          </div>
         </div>
+        <p class="editor-help">Fields marked * are required. Save when you have finished making changes.</p>
         <form id="event-form" class="event-form">
           <input id="record-row" type="hidden">
           <input id="record-fingerprint" type="hidden">
-          <div class="form-grid">
-            <div class="field">
-              <label for="date">Date *</label>
-              <input id="date" name="date" type="date" required>
+          <fieldset class="editor-section">
+            <legend>Talk and speaker</legend>
+            <div class="form-grid">
+              <div class="field field-wide">
+                <label for="title">Talk title *</label>
+                <textarea id="title" name="title" rows="2" required maxlength="1000"></textarea>
+              </div>
+              <div class="field">
+                <label for="speaker">Speaker *</label>
+                <input id="speaker" name="speaker" type="text" required maxlength="1000">
+              </div>
+              <div class="field">
+                <label for="speaker_detail">Affiliation or detail</label>
+                <input id="speaker_detail" name="speaker_detail" type="text" maxlength="1000">
+              </div>
+              <div class="field field-wide">
+                <label for="speaker_portfolio">Speaker website</label>
+                <input id="speaker_portfolio" name="speaker_portfolio" type="url" placeholder="https://…" maxlength="1000">
+              </div>
             </div>
-            <div class="field">
-              <label for="published">Visibility</label>
-              <select id="published" name="published">
-                <option value="yes">Published</option>
-                <option value="no">Draft</option>
-              </select>
+          </fieldset>
+          <fieldset class="editor-section">
+            <legend>When and where</legend>
+            <div class="form-grid">
+              <div class="field">
+                <label for="date">Date *</label>
+                <input id="date" name="date" type="date" required>
+              </div>
+              <div class="field">
+                <label for="timezone">Time zone</label>
+                <input id="timezone" name="timezone" type="text" value="Europe/Berlin" maxlength="1000">
+              </div>
+              <div class="field">
+                <label for="time">Start time <span class="hint">24-hour</span></label>
+                <input id="time" name="time" type="time" value="17:00">
+              </div>
+              <div class="field">
+                <label for="end_time">End time <span class="hint">24-hour</span></label>
+                <input id="end_time" name="end_time" type="time" value="19:00">
+              </div>
+              <div class="field field-wide">
+                <label for="venue">Venue</label>
+                <textarea id="venue" name="venue" rows="2" maxlength="1000">Department Liberal Arts and Social Sciences, Ulmenstraße 52i, Meetingroom 32</textarea>
+              </div>
+              <div class="field field-wide">
+                <label for="link">Meeting or registration link</label>
+                <input id="link" name="link" type="url" value="https://utn-de.zoom.us/j/63489126627?pwd=yDamnnbZTu0lfNauqurO3OEalHIKO1.1" placeholder="https://…" maxlength="1000">
+              </div>
             </div>
-            <div class="field field-wide">
-              <label for="title">Talk title *</label>
-              <input id="title" name="title" type="text" required maxlength="1000">
+          </fieldset>
+          <fieldset class="editor-section">
+            <legend>Abstract and visibility</legend>
+            <div class="form-grid">
+              <div class="field field-wide">
+                <label for="abstract">Abstract</label>
+                <textarea id="abstract" name="abstract" rows="8" maxlength="12000"></textarea>
+              </div>
+              <div class="field">
+                <label for="published">Visibility</label>
+                <select id="published" name="published">
+                  <option value="yes">Published</option>
+                  <option value="no">Draft</option>
+                </select>
+                <p class="field-note">Choose Draft to leave this seminar out of the public list.</p>
+              </div>
             </div>
-            <div class="field">
-              <label for="speaker">Speaker *</label>
-              <input id="speaker" name="speaker" type="text" required maxlength="1000">
-            </div>
-            <div class="field">
-              <label for="speaker_detail">Affiliation or detail</label>
-              <input id="speaker_detail" name="speaker_detail" type="text" maxlength="1000">
-            </div>
-            <div class="field field-wide">
-              <label for="speaker_portfolio">Speaker profile URL</label>
-              <input id="speaker_portfolio" name="speaker_portfolio" type="url" placeholder="https://…" maxlength="1000">
-            </div>
-            <div class="field">
-              <label for="time">Start time <span class="hint">24-hour</span></label>
-              <input id="time" name="time" type="time" value="17:00">
-            </div>
-            <div class="field">
-              <label for="end_time">End time <span class="hint">24-hour</span></label>
-              <input id="end_time" name="end_time" type="time" value="19:00">
-            </div>
-            <div class="field">
-              <label for="timezone">Time zone</label>
-              <input id="timezone" name="timezone" type="text" value="Europe/Berlin" maxlength="1000">
-            </div>
-            <div class="field">
-              <label for="venue">Venue</label>
-              <input id="venue" name="venue" type="text" value="Department Liberal Arts and Social Sciences, Ulmenstraße 52i, Meetingroom 32" maxlength="1000">
-            </div>
-            <div class="field field-wide">
-              <label for="link">Online meeting or registration URL</label>
-              <input id="link" name="link" type="url" value="https://utn-de.zoom.us/j/63489126627?pwd=yDamnnbZTu0lfNauqurO3OEalHIKO1.1" placeholder="https://…" maxlength="1000">
-            </div>
-            <div class="field field-wide">
-              <label for="abstract">Abstract</label>
-              <textarea id="abstract" name="abstract" maxlength="12000"></textarea>
-            </div>
-          </div>
+          </fieldset>
           <div class="form-actions">
             <button id="save-button" class="button button-primary" type="submit">Add seminar</button>
-            <button id="cancel-edit-button" class="button button-secondary hidden" type="button">Cancel edit</button>
+            <button id="cancel-edit-button" class="button button-secondary" type="button">Cancel</button>
           </div>
           <p id="editor-status" class="status" role="status" aria-live="polite"></p>
         </form>
       </section>
 
-      <section class="panel" aria-labelledby="events-title">
-        <div class="panel-toolbar">
-          <div>
-            <p class="section-kicker">Google Sheet</p>
-            <h2 id="events-title">All seminars</h2>
-          </div>
-          <button id="refresh-button" class="button button-secondary" type="button">Refresh</button>
-        </div>
-        <p id="list-status" class="status" role="status" aria-live="polite">Loading seminars…</p>
-        <div id="admin-events" class="admin-events"></div>
-      </section>
     </section>
   </main>
 
   <dialog id="delete-dialog" aria-labelledby="delete-title">
     <div class="dialog-content">
       <h2 id="delete-title">Delete this seminar?</h2>
-      <p id="delete-copy">This permanently removes the row from the Google Sheet.</p>
+      <p id="delete-copy">This permanently deletes the seminar.</p>
       <div class="dialog-actions">
         <button id="delete-cancel" class="button button-secondary" type="button">Keep seminar</button>
         <button id="delete-confirm" class="button button-danger" type="button">Delete seminar</button>
@@ -145,7 +167,7 @@
     </div>
   </dialog>
 
-  <noscript><p class="container noscript">JavaScript is required to manage seminars.</p></noscript>
+  <noscript><p class="container noscript">The editor is unavailable in this browser. Please try a different browser.</p></noscript>
   <script src="./admin.js" defer></script>
 </body>
 </html>

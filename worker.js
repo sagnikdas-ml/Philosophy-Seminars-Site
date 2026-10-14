@@ -5,6 +5,11 @@ const EVENT_FIELDS = [
   "date", "speaker", "title", "link", "speaker_detail", "speaker_portfolio",
   "time", "end_time", "timezone", "venue", "abstract", "published",
 ];
+const EVENT_FIELD_LABELS = {
+  date: "Date", speaker: "Speaker", title: "Talk title", link: "Meeting link",
+  speaker_detail: "Affiliation", speaker_portfolio: "Speaker website", time: "Start time",
+  end_time: "End time", timezone: "Time zone", venue: "Venue", abstract: "Abstract", published: "Visibility",
+};
 
 export default {
   async fetch(request, env) {
@@ -24,7 +29,7 @@ export default {
 async function handlePublicFeed(request, env) {
   if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed("GET, HEAD");
   if (!env.GOOGLE_SHEET_CSV_URL || env.GOOGLE_SHEET_CSV_URL.includes("REPLACE_WITH")) {
-    return textResponse("Google Sheet feed is not configured", 503);
+    return textResponse("Seminars are temporarily unavailable. Please try again later.", 503);
   }
 
   try {
@@ -32,7 +37,7 @@ async function handlePublicFeed(request, env) {
       headers: { accept: "text/csv,*/*;q=0.8" },
       cf: { cacheEverything: true, cacheTtl: 60 },
     });
-    if (!upstream.ok) return textResponse(`Google Sheet request failed: HTTP ${upstream.status}`, 502);
+    if (!upstream.ok) return textResponse("Seminars could not be loaded. Please try again.", 502);
     const upstreamCsv = await upstream.text();
     const csv = upstreamCsv.trim() ? upstreamCsv : `${EVENT_FIELDS.join(",")}\n`;
     return new Response(request.method === "HEAD" ? null : csv, {
@@ -43,14 +48,14 @@ async function handlePublicFeed(request, env) {
       },
     });
   } catch {
-    return textResponse("Failed to fetch Google Sheet feed", 502);
+    return textResponse("Seminars could not be loaded. Please try again.", 502);
   }
 }
 
 async function handleLogin(request, env) {
   if (request.method !== "POST") return methodNotAllowed("POST");
-  if (!sameOrigin(request)) return jsonResponse({ error: "Invalid request origin" }, 403);
-  if (!env.ADMIN_PASSWORD) return jsonResponse({ error: "Admin access is not configured" }, 503);
+  if (!sameOrigin(request)) return jsonResponse({ error: "Please refresh the page and try again." }, 403);
+  if (!env.ADMIN_PASSWORD) return jsonResponse({ error: "The editor is temporarily unavailable. Please try again later." }, 503);
 
   const body = await readJson(request);
   if (!body.ok) return jsonResponse({ error: body.error }, body.status);
@@ -70,7 +75,7 @@ async function handleLogin(request, env) {
 
 async function handleLogout(request) {
   if (request.method !== "POST") return methodNotAllowed("POST");
-  if (!sameOrigin(request)) return jsonResponse({ error: "Invalid request origin" }, 403);
+  if (!sameOrigin(request)) return jsonResponse({ error: "Please refresh the page and try again." }, 403);
   return jsonResponse(
     { ok: true },
     200,
@@ -87,22 +92,22 @@ async function handleAdminSeminars(request, env) {
   if (!["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
     return methodNotAllowed("GET, POST, PUT, DELETE");
   }
-  if (!(await isAuthenticated(request, env))) return jsonResponse({ error: "Authentication required" }, 401);
+  if (!(await isAuthenticated(request, env))) return jsonResponse({ error: "Please sign in to manage seminars." }, 401);
   if (request.method !== "GET" && !sameOrigin(request)) {
-    return jsonResponse({ error: "Invalid request origin" }, 403);
+    return jsonResponse({ error: "Please refresh the page and try again." }, 403);
   }
 
   if (request.method === "GET") {
     try {
       const records = await loadAdminRecords(env);
       return jsonResponse({ events: records }, 200, { "cache-control": "no-store" });
-    } catch (error) {
-      return jsonResponse({ error: error.message || "Unable to load seminars" }, 502);
+    } catch {
+      return jsonResponse({ error: "Seminars could not be loaded. Please try again." }, 502);
     }
   }
 
   if (!env.GOOGLE_APPS_SCRIPT_URL || !env.APPS_SCRIPT_SECRET) {
-    return jsonResponse({ error: "Google Apps Script writes are not configured" }, 503);
+    return jsonResponse({ error: "Changes cannot be saved right now. Please try again later." }, 503);
   }
 
   const body = await readJson(request);
@@ -131,7 +136,14 @@ async function handleAdminSeminars(request, env) {
     const result = await callAppsScript(env.GOOGLE_APPS_SCRIPT_URL, payload);
     return jsonResponse({ ok: true, result }, operation === "create" ? 201 : 200, { "cache-control": "no-store" });
   } catch (error) {
-    return jsonResponse({ error: error.message || "The update could not be saved" }, 502);
+    const helpfulMessages = [
+      "That seminar no longer exists. Refresh and try again.",
+      "This seminar changed since it was loaded. Refresh before editing it.",
+    ];
+    const message = helpfulMessages.includes(error.message)
+      ? error.message
+      : `The seminar could not be ${operation === "delete" ? "deleted" : "saved"}. Please try again.`;
+    return jsonResponse({ error: message }, 502);
   }
 }
 
@@ -168,22 +180,22 @@ async function callAppsScript(url, payload) {
 }
 
 function validateEvent(input) {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return { ok: false, error: "Missing event" };
+  if (!input || typeof input !== "object" || Array.isArray(input)) return { ok: false, error: "Please enter the seminar details." };
   const event = {};
   for (const field of EVENT_FIELDS) {
     const value = String(input[field] ?? "").trim();
-    if (value.length > (field === "abstract" ? 12000 : 1000)) return { ok: false, error: `${field} is too long` };
+    if (value.length > (field === "abstract" ? 12000 : 1000)) return { ok: false, error: `${EVENT_FIELD_LABELS[field]} is too long. Please shorten it.` };
     event[field] = value;
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(event.date) || Number.isNaN(Date.parse(`${event.date}T00:00:00Z`))) {
-    return { ok: false, error: "Date must use YYYY-MM-DD" };
+    return { ok: false, error: "Please choose a valid date." };
   }
   if (!event.speaker || !event.title) return { ok: false, error: "Date, speaker and title are required" };
   for (const field of ["time", "end_time"]) {
-    if (event[field] && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event[field])) return { ok: false, error: `${field} must use HH:MM` };
+    if (event[field] && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event[field])) return { ok: false, error: `Please choose a valid ${EVENT_FIELD_LABELS[field].toLowerCase()}.` };
   }
   if (event.published && !["yes", "no"].includes(event.published.toLowerCase())) {
-    return { ok: false, error: "Published must be yes or no" };
+    return { ok: false, error: "Please choose Published or Draft." };
   }
   event.published = event.published ? event.published.toLowerCase() : "yes";
   for (const field of ["link", "speaker_portfolio"]) {
@@ -191,7 +203,7 @@ function validateEvent(input) {
       try {
         const parsed = new URL(event[field]);
         if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
-      } catch { return { ok: false, error: `${field} must be a complete http(s) URL` }; }
+      } catch { return { ok: false, error: `Please enter a complete ${field === "link" ? "meeting" : "speaker website"} link.` }; }
     }
   }
   return { ok: true, value: event };
@@ -201,7 +213,7 @@ function validateIdentity(input) {
   const row = Number(input?.row);
   const fingerprintValue = String(input?.fingerprint || "");
   if (!Number.isInteger(row) || row < 2 || !/^[a-f0-9]{64}$/.test(fingerprintValue)) {
-    return { ok: false, error: "This seminar has an invalid record identity. Reload and try again." };
+    return { ok: false, error: "This seminar could not be found. Refresh the list and try again." };
   }
   return { ok: true, row, fingerprint: fingerprintValue };
 }
@@ -234,12 +246,12 @@ async function fingerprint(record) {
 
 async function readJson(request) {
   const length = Number(request.headers.get("content-length") || 0);
-  if (length > MAX_BODY_BYTES) return { ok: false, status: 413, error: "Request is too large" };
+  if (length > MAX_BODY_BYTES) return { ok: false, status: 413, error: "The information entered is too long. Please shorten it and try again." };
   try {
     const text = await request.text();
-    if (text.length > MAX_BODY_BYTES) return { ok: false, status: 413, error: "Request is too large" };
+    if (text.length > MAX_BODY_BYTES) return { ok: false, status: 413, error: "The information entered is too long. Please shorten it and try again." };
     return { ok: true, value: JSON.parse(text || "{}") };
-  } catch { return { ok: false, status: 400, error: "Invalid JSON" }; }
+  } catch { return { ok: false, status: 400, error: "We could not read your changes. Please try again." }; }
 }
 
 function sameOrigin(request) {
@@ -280,7 +292,7 @@ async function safeEqual(left, right) {
 }
 
 function bytesToHex(bytes) { return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
-function methodNotAllowed(allow) { return new Response("Method Not Allowed", { status: 405, headers: { allow } }); }
+function methodNotAllowed(allow) { return new Response("This action is unavailable. Please refresh the page and try again.", { status: 405, headers: { allow } }); }
 function textResponse(body, status) { return new Response(body, { status, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } }); }
 function jsonResponse(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {

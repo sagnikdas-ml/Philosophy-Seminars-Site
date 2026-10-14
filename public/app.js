@@ -398,14 +398,40 @@ function renderSeminars(seminars) {
 
 function renderCardGroup(target, seminars, isPast) {
   target.innerHTML = "";
+  const monthGroups = new Map();
 
   seminars.forEach((seminar, index) => {
+    const monthKey = seminar.dateIso.slice(0, 7);
+    let monthCards = monthGroups.get(monthKey);
+
+    if (!monthCards) {
+      const group = document.createElement("section");
+      group.className = "seminar-month-group";
+
+      const heading = document.createElement("h3");
+      heading.className = "seminar-month-heading";
+      heading.id = `${target.id}-${monthKey}`;
+      heading.textContent = new Intl.DateTimeFormat("en-GB", {
+        timeZone: seminar.timeZone,
+        month: "long",
+        year: "numeric",
+      }).format(seminar.startAt);
+      group.setAttribute("aria-labelledby", heading.id);
+
+      monthCards = document.createElement("div");
+      monthCards.className = "cards";
+      group.appendChild(heading);
+      group.appendChild(monthCards);
+      target.appendChild(group);
+      monthGroups.set(monthKey, monthCards);
+    }
+
     const card = document.createElement("article");
     card.className = `card ${isPast ? "card-past" : "card-upcoming"}`;
     card.style.animationDelay = `${Math.min(index * 40, 240)}ms`;
     card.innerHTML = buildSeminarCardMarkup(seminar, isPast);
 
-    target.appendChild(card);
+    monthCards.appendChild(card);
   });
 }
 
@@ -465,7 +491,7 @@ function buildSeminarCardMarkup(seminar, isPast) {
       ${buildDateBlockMarkup(seminar)}
       <div class="card-main">
         <span class="chip">${isPast ? "Archive" : buildRelativeLabel(seminar)}</span>
-        <h3>${escapeHtml(seminar.title)}</h3>
+        <h4>${escapeHtml(seminar.title)}</h4>
         <p class="speaker">${speakerNameHtml}</p>
         ${speakerDetailHtml}
         <div class="card-meta">${metaPieces.join(" &middot; ")}</div>
@@ -516,7 +542,7 @@ function buildActionsMarkup(seminar, isPast) {
   actions.push(
     `<a class="calendar-link" href="${escapeAttribute(
       buildIcsDataUrl(seminar)
-    )}" download="${escapeAttribute(buildIcsFileName(seminar))}">Add to Calendar (.ics)</a>`
+    )}" download="${escapeAttribute(buildIcsFileName(seminar))}">Add to Calendar</a>`
   );
 
   return actions.join("");

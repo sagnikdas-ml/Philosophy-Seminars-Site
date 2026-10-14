@@ -59,3 +59,46 @@ test("an empty upstream sheet becomes a valid header-only public feed", async ()
     globalThis.fetch = originalFetch;
   }
 });
+
+test("editor errors hide service details and preserve useful conflict guidance", async () => {
+  const site = "https://seminars.example";
+  const env = {
+    ADMIN_PASSWORD: "test-password",
+    GOOGLE_SHEET_CSV_URL: "https://example.com/seminars.csv",
+    GOOGLE_APPS_SCRIPT_URL: "https://example.com/bridge",
+    APPS_SCRIPT_SECRET: "test-secret",
+  };
+  const login = await worker.fetch(new Request(`${site}/api/admin/login`, {
+    method: "POST",
+    headers: { origin: site, "content-type": "application/json" },
+    body: JSON.stringify({ password: env.ADMIN_PASSWORD }),
+  }), env);
+  const cookie = login.headers.get("set-cookie").split(";")[0];
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response("Provider failure", { status: 500 });
+    const listing = await worker.fetch(new Request(`${site}/api/admin/seminars`, {
+      headers: { cookie },
+    }), env);
+    assert.equal(listing.status, 502);
+    assert.deepEqual(await listing.json(), { error: "Seminars could not be loaded. Please try again." });
+
+    const save = () => worker.fetch(new Request(`${site}/api/admin/seminars`, {
+      method: "POST",
+      headers: { cookie, origin: site, "content-type": "application/json" },
+      body: JSON.stringify({ event: { date: "2026-11-18", speaker: "Dana", title: "Talk" } }),
+    }), env);
+    globalThis.fetch = async () => new Response(JSON.stringify({ ok: false, error: "Missing SHEET_ID Script Property" }));
+    const unavailable = await save();
+    assert.equal(unavailable.status, 502);
+    assert.deepEqual(await unavailable.json(), { error: "The seminar could not be saved. Please try again." });
+
+    const conflictMessage = "This seminar changed since it was loaded. Refresh before editing it.";
+    globalThis.fetch = async () => new Response(JSON.stringify({ ok: false, error: conflictMessage }));
+    const conflict = await save();
+    assert.equal(conflict.status, 502);
+    assert.deepEqual(await conflict.json(), { error: conflictMessage });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

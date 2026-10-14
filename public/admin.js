@@ -14,11 +14,15 @@ const elements = {
   loginStatus: document.getElementById("login-status"),
   password: document.getElementById("password"),
   dashboard: document.getElementById("dashboard"),
+  editorPanel: document.getElementById("editor-panel"),
+  eventsPanel: document.getElementById("events-panel"),
+  back: document.getElementById("editor-back-button"),
   logout: document.getElementById("logout-button"),
   form: document.getElementById("event-form"),
   editorTitle: document.getElementById("editor-title"),
   editorStatus: document.getElementById("editor-status"),
   save: document.getElementById("save-button"),
+  saveTop: document.getElementById("save-top-button"),
   cancelEdit: document.getElementById("cancel-edit-button"),
   newEvent: document.getElementById("new-event-button"),
   refresh: document.getElementById("refresh-button"),
@@ -38,8 +42,9 @@ let pendingDelete = null;
 elements.loginForm.addEventListener("submit", login);
 elements.logout.addEventListener("click", logout);
 elements.form.addEventListener("submit", saveEvent);
-elements.cancelEdit.addEventListener("click", resetEditor);
-elements.newEvent.addEventListener("click", resetEditor);
+elements.cancelEdit.addEventListener("click", () => showEventList(true));
+elements.back.addEventListener("click", () => showEventList(true));
+elements.newEvent.addEventListener("click", beginAdd);
 elements.refresh.addEventListener("click", loadEvents);
 elements.deleteCancel.addEventListener("click", () => elements.deleteDialog.close());
 elements.deleteConfirm.addEventListener("click", deleteEvent);
@@ -89,7 +94,30 @@ async function showDashboard() {
   elements.loginView.classList.add("hidden");
   elements.dashboard.classList.remove("hidden");
   elements.logout.classList.remove("hidden");
+  showEventList();
   await loadEvents();
+}
+
+function showEventList(scroll = false) {
+  resetEditor();
+  elements.editorPanel.classList.add("hidden");
+  elements.eventsPanel.classList.remove("hidden");
+  if (scroll) {
+    elements.eventsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    elements.newEvent.focus({ preventScroll: true });
+  }
+}
+
+function showEditor() {
+  elements.eventsPanel.classList.add("hidden");
+  elements.editorPanel.classList.remove("hidden");
+  elements.editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("title").focus({ preventScroll: true });
+}
+
+function beginAdd() {
+  resetEditor();
+  showEditor();
 }
 
 function showLogin() {
@@ -107,6 +135,7 @@ async function loadEvents() {
     events = [...result.events].sort((a, b) => b.date.localeCompare(a.date) || a.speaker.localeCompare(b.speaker));
     renderEvents();
     setStatus(elements.listStatus, events.length ? `${events.length} seminar${events.length === 1 ? "" : "s"}` : "No seminars yet.");
+    return true;
   } catch (error) {
     if (error.status === 401) { showLogin(); return; }
     setStatus(elements.listStatus, error.message, "error");
@@ -172,11 +201,9 @@ function beginEdit(item) {
   elements.fingerprint.value = item._fingerprint;
   elements.editorTitle.textContent = "Edit seminar";
   elements.save.textContent = "Save changes";
-  elements.cancelEdit.classList.remove("hidden");
-  elements.newEvent.classList.remove("hidden");
+  elements.saveTop.textContent = "Save changes";
   setStatus(elements.editorStatus, `Editing “${item.title}”`);
-  elements.form.scrollIntoView({ behavior: "smooth", block: "start" });
-  document.getElementById("title").focus({ preventScroll: true });
+  showEditor();
 }
 
 function resetEditor() {
@@ -191,8 +218,7 @@ function resetEditor() {
   elements.fingerprint.value = "";
   elements.editorTitle.textContent = "Add seminar";
   elements.save.textContent = "Add seminar";
-  elements.cancelEdit.classList.add("hidden");
-  elements.newEvent.classList.add("hidden");
+  elements.saveTop.textContent = "Add seminar";
   setStatus(elements.editorStatus, "");
 }
 
@@ -207,23 +233,26 @@ async function saveEvent(event) {
   }
 
   setBusy(elements.save, true);
+  setBusy(elements.saveTop, true);
   setStatus(elements.editorStatus, isEditing ? "Saving changes…" : "Adding seminar…");
   try {
     await api(`${API}/seminars`, { method: isEditing ? "PUT" : "POST", body });
-    resetEditor();
-    setStatus(elements.editorStatus, isEditing ? "Changes saved." : "Seminar added.", "success");
-    await loadEvents();
+    showEventList(true);
+    if (await loadEvents()) {
+      setStatus(elements.listStatus, isEditing ? "Changes saved." : "Seminar added.", "success");
+    }
   } catch (error) {
     if (error.status === 401) { showLogin(); return; }
     setStatus(elements.editorStatus, error.message, "error");
   } finally {
     setBusy(elements.save, false);
+    setBusy(elements.saveTop, false);
   }
 }
 
 function confirmDelete(item) {
   pendingDelete = item;
-  elements.deleteCopy.textContent = `“${item.title}” by ${item.speaker} will be permanently removed from the Google Sheet.`;
+  elements.deleteCopy.textContent = `“${item.title}” by ${item.speaker} will be permanently deleted.`;
   elements.deleteDialog.showModal();
   elements.deleteConfirm.focus();
 }
@@ -256,13 +285,19 @@ async function api(url, options = {}) {
     init.headers["content-type"] = "application/json";
     init.body = JSON.stringify(options.body);
   }
-  const response = await fetch(url, init);
-  const result = await response.json().catch(() => ({}));
+  let response;
+  try {
+    response = await fetch(url, init);
+  } catch {
+    throw new Error("We could not connect. Check your internet connection and try again.");
+  }
+  const result = await response.json().catch(() => null);
   if (!response.ok) {
-    const error = new Error(result.error || `Request failed: HTTP ${response.status}`);
+    const error = new Error(result?.error || "Something went wrong. Please try again.");
     error.status = response.status;
     throw error;
   }
+  if (!result || typeof result !== "object") throw new Error("Something went wrong. Please try again.");
   return result;
 }
 

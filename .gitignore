@@ -1,7 +1,9 @@
 node_modules/
+dist/
 .dev.vars
 api.secret
 .wrangler/
 .DS_Store
 coverage/
 *.secret
+secrets.cnf
