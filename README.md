@@ -79,7 +79,7 @@ When diagnosing a failure, separate these three parts:
 
 ## Before you begin
 
-You need access to the source files and the Cloudflare account containing the Pages project. For data or write-service repairs, you also need the relevant Google account. For DNS changes, you need the account at the domain's actual DNS provider; currently this is WordPress.com.
+You need access to the source files and the Cloudflare account containing the Pages project. For data or write-service repairs, you also need the relevant Google account.
 
 There are two different secrets:
 
@@ -536,8 +536,6 @@ Check that:
 - The Cloudflare build reported **Success** and deployed the intended commit.
 
 Use GitHub pushes to `main` for production deployment. Use a pull request or another branch to inspect a preview deployment.
-
-If `npm ci` fails, check the Node version before changing dependencies. If PowerShell blocks `npm.ps1` or `npx.ps1`, use `npm.cmd` or `npx.cmd` for those commands. If the local port is occupied, stop the previous server or choose an unused port for Wrangler.
 
 ### Missing or stale seminars
 
