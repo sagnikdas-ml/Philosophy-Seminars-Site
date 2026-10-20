@@ -19,6 +19,7 @@ const heroFeatureCard = document.getElementById("hero-feature-card");
 const heroSeriesCount = document.getElementById("hero-series-count");
 const heroNextDate = document.getElementById("hero-next-date");
 const researcherConveners = document.getElementById("researcher-conveners");
+const convenersLine = document.getElementById("conveners-line");
 const footerResearchers = document.getElementById("footer-researchers");
 const DEFAULT_UPCOMING_EMPTY_TEXT =
   upcomingEmpty?.textContent || "No upcoming seminars yet";
@@ -85,6 +86,7 @@ async function loadResearchers() {
     if (!Array.isArray(result.researchers)) throw new Error("Invalid researcher directory");
     renderResearchers(result.researchers);
   } catch {
+    renderResearchers([]);
     footerResearchers.textContent = "Researcher profiles are temporarily unavailable.";
   }
 }
@@ -94,13 +96,21 @@ function renderResearchers(researchers) {
   researcherConveners.replaceChildren();
   footerResearchers.replaceChildren();
 
-  valid.forEach((researcher, index) => {
-    researcherConveners.append(document.createTextNode(index === 0 ? ", " : index === valid.length - 1 ? ", and " : ", "));
-    researcherConveners.append(createResearcherAnchor(researcher, false));
-
+  const conveners = [
+    { title: "Prof.", full_name: "Dana Jalobeanu", portfolio_link: "https://danajalobeanu.com/" },
+    ...valid,
+  ];
+  conveners.forEach((person, index) => {
+    if (index > 0) {
+      researcherConveners.append(document.createTextNode(index === conveners.length - 1 ? ", and " : ", "));
+    }
+    researcherConveners.append(createResearcherAnchor(person, false));
+  });
+  valid.forEach((researcher) => {
     const footerLink = createResearcherAnchor(researcher, true);
     footerResearchers.append(footerLink);
   });
+  convenersLine?.classList.remove("hidden");
 }
 
 function createResearcherAnchor(researcher, includeContactLabel) {
@@ -110,7 +120,7 @@ function createResearcherAnchor(researcher, includeContactLabel) {
   link.rel = "noopener noreferrer";
   const name = `${researcher.title ? `${researcher.title} ` : ""}${researcher.full_name}`;
   link.textContent = includeContactLabel ? `${name} · profile & contact` : name;
-  if (includeContactLabel) link.className = "speaker-portfolio-link";
+  link.className = "speaker-portfolio-link";
   return link;
 }
 
