@@ -14,6 +14,17 @@ const elements = {
   loginStatus: document.getElementById("login-status"),
   password: document.getElementById("password"),
   dashboard: document.getElementById("dashboard"),
+  researcherForm: document.getElementById("researcher-form"),
+  researcherList: document.getElementById("admin-researchers"),
+  researcherStatus: document.getElementById("researchers-status"),
+  researcherEditorStatus: document.getElementById("researcher-editor-status"),
+  researcherId: document.getElementById("researcher-id"),
+  researcherFingerprint: document.getElementById("researcher-fingerprint"),
+  researcherEditorTitle: document.getElementById("researcher-editor-title"),
+  saveResearcher: document.getElementById("save-researcher-button"),
+  newResearcher: document.getElementById("new-researcher-button"),
+  refreshResearchers: document.getElementById("refresh-researchers-button"),
+  cancelResearcher: document.getElementById("cancel-researcher-button"),
   editorPanel: document.getElementById("editor-panel"),
   eventsPanel: document.getElementById("events-panel"),
   back: document.getElementById("editor-back-button"),
@@ -37,7 +48,9 @@ const elements = {
 };
 
 let events = [];
+let researchers = [];
 let pendingDelete = null;
+let pendingDeleteResearcher = null;
 
 elements.loginForm.addEventListener("submit", login);
 elements.logout.addEventListener("click", logout);
@@ -46,9 +59,19 @@ elements.cancelEdit.addEventListener("click", () => showEventList(true));
 elements.back.addEventListener("click", () => showEventList(true));
 elements.newEvent.addEventListener("click", beginAdd);
 elements.refresh.addEventListener("click", loadEvents);
-elements.deleteCancel.addEventListener("click", () => elements.deleteDialog.close());
-elements.deleteConfirm.addEventListener("click", deleteEvent);
+elements.deleteCancel.addEventListener("click", () => {
+  elements.deleteDialog.close();
+  pendingDelete = null;
+  pendingDeleteResearcher = null;
+  restoreDeleteDialog();
+});
+elements.deleteConfirm.addEventListener("click", () => pendingDeleteResearcher ? deleteResearcher() : deleteEvent());
 elements.eventList.addEventListener("click", handleListClick);
+elements.researcherForm.addEventListener("submit", saveResearcher);
+elements.researcherList.addEventListener("click", handleResearcherClick);
+elements.newResearcher.addEventListener("click", beginAddResearcher);
+elements.refreshResearchers.addEventListener("click", loadResearchers);
+elements.cancelResearcher.addEventListener("click", resetResearcherForm);
 
 checkSession();
 
@@ -85,6 +108,7 @@ async function logout() {
   setBusy(elements.logout, true);
   try { await api(`${API}/logout`, { method: "POST", body: {} }); } catch { /* Clear the local view regardless. */ }
   events = [];
+  researchers = [];
   resetEditor();
   showLogin();
   setBusy(elements.logout, false);
@@ -96,6 +120,7 @@ async function showDashboard() {
   elements.logout.classList.remove("hidden");
   showEventList();
   await loadEvents();
+  await loadResearchers();
 }
 
 function showEventList(scroll = false) {
@@ -141,6 +166,152 @@ async function loadEvents() {
     setStatus(elements.listStatus, error.message, "error");
   } finally {
     setBusy(elements.refresh, false);
+  }
+}
+
+async function loadResearchers() {
+  setBusy(elements.refreshResearchers, true);
+  setStatus(elements.researcherStatus, "Loading researchers…");
+  try {
+    const result = await api(`${API}/researchers`);
+    researchers = result.researchers || [];
+    renderResearchers();
+    setStatus(elements.researcherStatus, researchers.length ? `${researchers.length} researcher${researchers.length === 1 ? "" : "s"}` : "No researchers yet.");
+    return true;
+  } catch (error) {
+    if (error.status === 401) { showLogin(); return false; }
+    setStatus(elements.researcherStatus, error.message, "error");
+    return false;
+  } finally {
+    setBusy(elements.refreshResearchers, false);
+  }
+}
+
+function renderResearchers() {
+  elements.researcherList.replaceChildren();
+  for (const item of researchers) {
+    const card = document.createElement("article");
+    card.className = "admin-event";
+    const top = document.createElement("div");
+    top.className = "admin-event-top";
+    const copy = document.createElement("div");
+    const name = document.createElement("h3");
+    name.textContent = [item.title, item.full_name].filter(Boolean).join(" ");
+    const link = document.createElement("a");
+    link.href = item.portfolio_link;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = item.portfolio_link;
+    copy.append(name, link);
+    const actions = document.createElement("div");
+    actions.className = "admin-event-actions";
+    actions.append(researcherActionButton("Edit", "edit", item), researcherActionButton("Remove", "remove", item, "button-danger"));
+    top.append(copy, actions);
+    card.append(top);
+    elements.researcherList.append(card);
+  }
+}
+
+function researcherActionButton(label, action, item, extraClass = "button-secondary") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `button ${extraClass}`;
+  button.textContent = label;
+  button.dataset.researcherAction = action;
+  button.dataset.id = item.id;
+  return button;
+}
+
+function handleResearcherClick(event) {
+  const button = event.target.closest("button[data-researcher-action]");
+  if (!button) return;
+  const item = researchers.find((candidate) => candidate.id === button.dataset.id);
+  if (!item) return;
+  if (button.dataset.researcherAction === "edit") editResearcher(item);
+  if (button.dataset.researcherAction === "remove") confirmDeleteResearcher(item);
+}
+
+function beginAddResearcher() {
+  elements.researcherForm.reset();
+  elements.researcherId.value = "";
+  elements.researcherFingerprint.value = "";
+  elements.researcherEditorTitle.textContent = "Add researcher";
+  elements.saveResearcher.textContent = "Add researcher";
+  elements.researcherForm.classList.remove("hidden");
+  setStatus(elements.researcherEditorStatus, "");
+  document.getElementById("researcher-full-name").focus();
+}
+
+function editResearcher(item) {
+  elements.researcherForm.elements.namedItem("title").value = item.title || "";
+  elements.researcherForm.elements.namedItem("full_name").value = item.full_name || "";
+  elements.researcherForm.elements.namedItem("portfolio_link").value = item.portfolio_link || "";
+  elements.researcherId.value = item.id;
+  elements.researcherFingerprint.value = item._fingerprint;
+  elements.researcherEditorTitle.textContent = "Edit researcher";
+  elements.saveResearcher.textContent = "Save changes";
+  elements.researcherForm.classList.remove("hidden");
+  setStatus(elements.researcherEditorStatus, `Editing ${item.full_name}`);
+  document.getElementById("researcher-full-name").focus();
+}
+
+function resetResearcherForm() {
+  elements.researcherForm.reset();
+  elements.researcherId.value = "";
+  elements.researcherFingerprint.value = "";
+  elements.researcherForm.classList.add("hidden");
+  setStatus(elements.researcherEditorStatus, "");
+}
+
+async function saveResearcher(event) {
+  event.preventDefault();
+  const isEditing = Boolean(elements.researcherId.value);
+  const researcher = Object.fromEntries(["title", "full_name", "portfolio_link"].map((field) => [field, String(elements.researcherForm.elements.namedItem(field).value || "").trim()]));
+  const body = { researcher };
+  if (isEditing) {
+    body.id = elements.researcherId.value;
+    body.fingerprint = elements.researcherFingerprint.value;
+  }
+  setBusy(elements.saveResearcher, true);
+  setStatus(elements.researcherEditorStatus, isEditing ? "Saving changes…" : "Adding researcher…");
+  try {
+    await api(`${API}/researchers`, { method: isEditing ? "PUT" : "POST", body });
+    resetResearcherForm();
+    if (await loadResearchers()) setStatus(elements.researcherStatus, isEditing ? "Researcher updated." : "Researcher added.", "success");
+  } catch (error) {
+    if (error.status === 401) { showLogin(); return; }
+    setStatus(elements.researcherEditorStatus, error.message, "error");
+  } finally {
+    setBusy(elements.saveResearcher, false);
+  }
+}
+
+function confirmDeleteResearcher(item) {
+  pendingDeleteResearcher = item;
+  pendingDelete = null;
+  elements.deleteDialog.querySelector("h2").textContent = "Remove this researcher?";
+  elements.deleteCopy.textContent = `${item.full_name} will be removed from the public site.`;
+  elements.deleteCancel.textContent = "Keep researcher";
+  elements.deleteConfirm.textContent = "Remove researcher";
+  elements.deleteDialog.showModal();
+  elements.deleteConfirm.focus();
+}
+
+async function deleteResearcher() {
+  const item = pendingDeleteResearcher;
+  if (!item) return;
+  setBusy(elements.deleteConfirm, true);
+  try {
+    await api(`${API}/researchers`, { method: "DELETE", body: { id: item.id, fingerprint: item._fingerprint } });
+    elements.deleteDialog.close();
+    pendingDeleteResearcher = null;
+    restoreDeleteDialog();
+    if (await loadResearchers()) setStatus(elements.researcherStatus, "Researcher removed.", "success");
+  } catch (error) {
+    if (error.status === 401) { elements.deleteDialog.close(); showLogin(); return; }
+    elements.deleteCopy.textContent = error.message;
+  } finally {
+    setBusy(elements.deleteConfirm, false);
   }
 }
 
@@ -251,7 +422,9 @@ async function saveEvent(event) {
 }
 
 function confirmDelete(item) {
+  pendingDeleteResearcher = null;
   pendingDelete = item;
+  restoreDeleteDialog();
   elements.deleteCopy.textContent = `“${item.title}” by ${item.speaker} will be permanently deleted.`;
   elements.deleteDialog.showModal();
   elements.deleteConfirm.focus();
@@ -268,6 +441,7 @@ async function deleteEvent() {
     });
     elements.deleteDialog.close();
     pendingDelete = null;
+    restoreDeleteDialog();
     if (elements.row.value === String(item._row)) resetEditor();
     await loadEvents();
     setStatus(elements.listStatus, "Seminar deleted.", "success");
@@ -277,6 +451,13 @@ async function deleteEvent() {
   } finally {
     setBusy(elements.deleteConfirm, false);
   }
+}
+
+function restoreDeleteDialog() {
+  elements.deleteDialog.querySelector("h2").textContent = "Delete this seminar?";
+  elements.deleteCancel.textContent = "Keep seminar";
+  elements.deleteConfirm.textContent = "Delete seminar";
+  elements.deleteCopy.textContent = "This permanently deletes the seminar.";
 }
 
 async function api(url, options = {}) {

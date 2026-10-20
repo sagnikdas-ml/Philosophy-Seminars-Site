@@ -48,6 +48,46 @@
     </section>
 
     <section id="dashboard" class="admin-grid hidden" aria-label="Seminar editor">
+      <section id="researchers-panel" class="panel" aria-labelledby="researchers-title">
+        <div class="panel-toolbar">
+          <div>
+            <p class="section-kicker">People shown on the public site</p>
+            <h2 id="researchers-title">Researchers</h2>
+          </div>
+          <div class="panel-toolbar-actions">
+            <button id="refresh-researchers-button" class="button button-secondary" type="button">Refresh</button>
+            <button id="new-researcher-button" class="button button-primary" type="button">Add researcher</button>
+          </div>
+        </div>
+        <p class="editor-help">Manage researcher names and profile links. Remove a researcher when they leave the organization. Professor information is managed separately.</p>
+        <p id="researchers-status" class="status" role="status" aria-live="polite">Loading researchers…</p>
+        <div id="admin-researchers" class="admin-events"></div>
+        <form id="researcher-form" class="event-form researcher-form hidden">
+          <input id="researcher-id" type="hidden">
+          <input id="researcher-fingerprint" type="hidden">
+          <h3 id="researcher-editor-title">Add researcher</h3>
+          <div class="form-grid">
+            <div class="field">
+              <label for="researcher-title">Title</label>
+              <input id="researcher-title" name="title" type="text" maxlength="120" placeholder="Dr., Prof., etc. (optional)">
+            </div>
+            <div class="field">
+              <label for="researcher-full-name">Full name *</label>
+              <input id="researcher-full-name" name="full_name" type="text" required maxlength="200">
+            </div>
+            <div class="field field-wide">
+              <label for="researcher-portfolio-link">Portfolio link *</label>
+              <input id="researcher-portfolio-link" name="portfolio_link" type="url" placeholder="https://…" required maxlength="1000">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button id="save-researcher-button" class="button button-primary" type="submit">Add researcher</button>
+            <button id="cancel-researcher-button" class="button button-secondary" type="button">Cancel</button>
+          </div>
+          <p id="researcher-editor-status" class="status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
       <section id="events-panel" class="panel" aria-labelledby="events-title">
         <div class="panel-toolbar">
           <div>

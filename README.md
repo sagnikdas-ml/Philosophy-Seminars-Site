@@ -20,7 +20,7 @@ For ordinary seminar changes, use the [professor editor](https://seminars.danaja
 
 ## Current production setup
 
-These details were checked on 14 October 2026. Update this table when an account, domain, or service is moved.
+These details were last checked on 14 October 2026. Update this table when an account, domain, or service is moved.
 
 | Item | Current value |
 | --- | --- |
@@ -31,14 +31,43 @@ These details were checked on 14 October 2026. Update this table when an account
 | Cloudflare project | `philosophy-seminars-site`, type **Pages** |
 | Cloudflare dashboard | [Workers & Pages in the current account](https://dash.cloudflare.com/74dc493753dd71aab1ca76dfeb2279aa/workers-and-pages) |
 | Production branch | `main` |
-| Deployment method | Direct Upload with Wrangler, from a local checkout |
+| Deployment method | Cloudflare Pages Git integration; push to `main` deploys production |
 | Spreadsheet | [Open the current Google Sheet](https://docs.google.com/spreadsheets/d/1lb5uZfeaZEmB-ZH7DwzFFtzEIX2ItcwUX8Mvza0pxp0/edit#gid=0) |
 | Spreadsheet tab ID | `gid=0` in the CSV address |
 | Read and write service addresses | `GOOGLE_SHEET_CSV_URL` and `GOOGLE_APPS_SCRIPT_URL` in [wrangler.toml](wrangler.toml) |
 | DNS provider | WordPress.com; current nameservers are `ns1.wordpress.com`, `ns2.wordpress.com`, and `ns3.wordpress.com` |
 | Website DNS record | `seminars` → `philosophy-seminars-site.pages.dev`, type `CNAME` |
 
-**Pushing a commit to GitHub does not deploy the current Pages project.** It has no Git provider connected. Run the deployment command in this guide after changing website files.
+**GitHub is connected to Cloudflare Pages.** A push to `main` triggers the production build; pull requests and other branches create preview deployments. Cloudflare builds the repository with `npm run build` and publishes `dist/`. Keep Cloudflare secrets in the Pages project settings, not in GitHub or the repository.
+
+### Deployment and request flow
+
+```mermaid
+flowchart TD
+  subgraph deploy[Build and deploy]
+    dev[Developer] -->|commit and push| gh[GitHub repository]
+    gh -->|push to main| pages[Cloudflare Pages Git integration]
+    pages -->|npm run build| build[Build script]
+    build -->|creates| output[dist: site assets and _worker.js]
+    output --> prod[Production deployment]
+    prod --> live[seminars.danajalobeanu.com]
+    gh -->|pull request or other branch| previewBuild[Preview build]
+    previewBuild --> preview[Preview deployment URL]
+  end
+
+  subgraph requests[Live site requests]
+    visitor[Visitor] --> live
+    live --> worker[Pages Function]
+    worker -->|seminar feed| sheet[Google Sheets]
+    worker -->|researcher directory| script[Google Apps Script]
+    professor[Professor] --> admin[Professor Access]
+    admin -->|password session| worker
+    worker -->|APPS_SCRIPT_SECRET| script
+    script -->|researcher and seminar reads or writes| sheet
+  end
+```
+
+GitHub provides the source and starts builds. Cloudflare Pages runs the build, supplies the configured runtime variables and secrets, and serves the deployment. Public seminar and researcher data continue to come from Google Sheets and Apps Script.
 
 When diagnosing a failure, separate these three parts:
 
@@ -186,38 +215,25 @@ The example has placeholders; the actual file contains the current addresses. Ke
 
 These addresses are ordinary variables. Passwords belong in encrypted secrets, not in `[vars]`.
 
-### Step 5: Sign in and select the Pages project
+### Step 5: Connect GitHub to Pages
 
-Run:
+The production repository is already connected. For a new installation, create the Pages project in Cloudflare using **Workers & Pages → Create application → Pages → Connect to Git**, authorize GitHub, and select this repository. Set the production branch to `main` and use the build settings in [GitHub and Cloudflare Pages](#github-and-cloudflare-pages).
+
+For access to the Cloudflare project outside the dashboard, authenticate Wrangler and check the selected account:
 
 ```sh
 npx wrangler login
-```
-
-Finish authorization in the browser that opens. Check the account and projects:
-
-```sh
 npx wrangler whoami
 npx wrangler pages project list
 ```
 
-If `philosophy-seminars-site` is listed, use it and skip creation.
-
-For a new project, the Wrangler version locked by this repository uses:
-
-```sh
-npx wrangler pages project create philosophy-seminars-site --production-branch main --force
-```
-
-That version can delegate creation of a new project to Workers. `--force` on this creation command selects Pages explicitly. Subsequent deployments use the existing Pages project without that flag.
-
-If the project name is unavailable, choose another, update `name` in `wrangler.toml`, and replace the name in these commands. The DNS target must then be the actual `pages.dev` address Cloudflare gives the new project.
+If the project name differs, update `name` in `wrangler.toml` and the project name in commands that explicitly reference it. The public DNS target must match the project's actual `pages.dev` address.
 
 The server source is still named `worker.js`. The build copies it into Pages' `_worker.js` entry point. This is [Pages advanced mode](https://developers.cloudflare.com/pages/functions/advanced-mode/); the source filename does not require a standalone Worker project.
 
 ### Step 6: Add the production secrets
 
-Choose the password the professor will use, then run:
+Choose the password the professor will use, then add both values as encrypted production secrets in Cloudflare Pages under **Settings → Variables and Secrets**. You can also use Wrangler:
 
 ```sh
 npx wrangler pages secret put ADMIN_PASSWORD --project-name philosophy-seminars-site
@@ -241,20 +257,20 @@ npx wrangler pages secret list --project-name philosophy-seminars-site
 
 Expected names are `ADMIN_PASSWORD` and `APPS_SCRIPT_SECRET`. The command does not reveal their values.
 
-Alternatively, open the **Pages** project in the dashboard, choose the production environment under **Settings → Variables and Secrets**, add each name and value, and select the encrypted/secret option. Deploy after secret changes so the running version uses them. See [Pages secrets](https://developers.cloudflare.com/pages/functions/bindings/#secrets) for the dashboard controls.
+Alternatively, open the **Pages** project in the dashboard, choose the production environment under **Settings → Variables and Secrets**, add each name and value, and select the encrypted/secret option. Secret changes apply to a subsequent deployment; after updating them, retry the latest production deployment in Cloudflare. See [Pages secrets](https://developers.cloudflare.com/pages/functions/bindings/#secrets) for the dashboard controls.
 
-### Step 7: Deploy and verify the Pages address
+### Step 7: Verify the GitHub-triggered Pages deployment
 
-Run:
+With the repository connection and production secrets set, push the configured source to `main` to trigger the build. For local checks before pushing, run:
 
 ```sh
 npm run check
-npm run deploy -- --branch main --project-name philosophy-seminars-site
+npm run build
 ```
 
-The first command checks JavaScript syntax and runs the tests. The second builds `dist/` and uploads it to the production branch.
+`npm run check` checks JavaScript syntax and runs the tests. `npm run build` recreates `dist/`; Cloudflare runs the same build command when GitHub triggers a deployment.
 
-Wait for **Deployment complete**, not just **Uploaded files**. Wrangler prints the deployment address; also check the stable address:
+Wait for the Cloudflare build to report **Success**, then check the stable address:
 
 ```text
 https://philosophy-seminars-site.pages.dev/
@@ -374,16 +390,17 @@ For changes to HTML, styles, browser behavior, or the server:
 2. Check `git status --short`. Preserve local changes before pulling another source version.
 3. Edit the source file responsible for the change; see the file table below.
 4. Run `npm ci` if dependencies are missing or their files changed.
-5. Run:
+5. Run the local checks:
 
    ```sh
    npm run check
-   npm run deploy -- --branch main --project-name philosophy-seminars-site
+   npm run build
    ```
 
-6. Wait for **Deployment complete**.
-7. Check both the Pages address and the custom domain. Test the changed feature; for editor changes, also check login and loading seminars.
-8. Commit and push the intended source changes so the next maintainer can obtain the deployed version. Inspect staged filenames before committing, especially when local secret files are present.
+6. Inspect staged filenames, especially when local secret files are present. Commit and push the intended changes to GitHub. Pushing to `main` starts the production deployment; a pull request or another branch creates a preview.
+7. Wait for Cloudflare's build to report **Success**. Check the preview or production URL and test the changed feature; for editor changes, also check login and loading seminars.
+
+Routine website updates no longer need `npm run deploy`; GitHub triggers the Pages build and deployment.
 
 The build recreates `dist/` from `public/` and `worker.js`. Edit those source files. Direct edits to `dist/` are overwritten by the next build.
 
@@ -406,7 +423,9 @@ Existing seminars retain their saved values. Edit those records individually if 
 
 ### Update the write-service code
 
-If `apps-script/Code.gs` changes, update the existing Apps Script project and publish a new version of its web app deployment. Keep its existing `/exec` address where possible. If the address changes, update `GOOGLE_APPS_SCRIPT_URL` in `wrangler.toml` and deploy Pages.
+If `apps-script/Code.gs` changes, update the existing Apps Script project and publish a new version of its web app deployment. Keep its existing `/exec` address where possible. If the address changes, update `GOOGLE_APPS_SCRIPT_URL` in `wrangler.toml` and push the change to `main` to deploy Pages.
+
+The Professor Access dashboard includes a password-protected Researchers panel. It manages researcher title, full name, and portfolio link; Professor Dana Jalobeanu's information is not managed there. The Apps Script creates a `Researchers` tab in the configured spreadsheet when needed and initializes Rodolfo Garau and Andrei-Catalin Bunaciu on first creation. The public site reads those records from the same web app. Deploy the updated Apps Script before publishing the Pages changes so public researcher links and admin edits work together. To use a different tab name, set the Apps Script property `RESEARCHERS_SHEET_NAME` before the first request.
 
 Saving code alone does not update a versioned web app. Script-property changes are different: this code reads properties on each request. See Google's [deployment guide](https://developers.google.com/apps-script/concepts/deployments) for the version controls.
 
@@ -414,20 +433,10 @@ Saving code alone does not update a versioned web app. Script-property changes a
 
 The shared write secret does not need changing when resetting the editor password.
 
-1. Sign in to the correct Cloudflare account with `npx wrangler login` if necessary.
-2. Run this command and enter the new password at its prompt:
-
-   ```sh
-   npx wrangler pages secret put ADMIN_PASSWORD --project-name philosophy-seminars-site
-   ```
-
-3. Deploy:
-
-   ```sh
-   npm run deploy -- --branch main --project-name philosophy-seminars-site
-   ```
-
-4. After deployment, sign in with the new password and save it in the password manager.
+1. In Cloudflare Pages, open the production project's **Settings → Variables and Secrets**.
+2. Set the encrypted production secret `ADMIN_PASSWORD` to the new password.
+3. In **Deployments**, retry the latest production deployment so it uses the updated setting.
+4. After it succeeds, sign in with the new password and save it in the password manager.
 
 Sessions last up to eight hours. Replacing the active password invalidates sessions signed with the previous one.
 
@@ -435,12 +444,7 @@ Sessions last up to eight hours. Replacing the active password invalidates sessi
 
 If it is forgotten, a project editor can retrieve `API_SECRET` from the existing Apps Script properties and use that same value to restore Cloudflare's `APPS_SCRIPT_SECRET`:
 
-```sh
-npx wrangler pages secret put APPS_SCRIPT_SECRET --project-name philosophy-seminars-site
-npm run deploy -- --branch main --project-name philosophy-seminars-site
-```
-
-If a new value is needed, generate one with the Node command in Step 3, save it to the password manager, set it as **both** `API_SECRET` and `APPS_SCRIPT_SECRET`, and deploy Pages. Saving fails while the two values differ.
+Update the encrypted production secret `APPS_SCRIPT_SECRET` in Cloudflare Pages, then retry the latest production deployment. If a new value is needed, generate one with the Node command in Step 3, save it to the password manager, set it as **both** `API_SECRET` and `APPS_SCRIPT_SECRET`, and trigger a new Pages deployment. Saving fails while the two values differ.
 
 The optional Windows helper replaces **both** the admin password and shared secret:
 
@@ -448,7 +452,7 @@ The optional Windows helper replaces **both** the admin password and shared secr
 powershell -ExecutionPolicy Bypass -File scripts/set-pages-secrets.ps1
 ```
 
-It prompts for a new password, saves both Pages secrets, and displays the shared value in that terminal. Copy that value into Apps Script's `API_SECRET`, save it in the password manager, and deploy Pages. Use the individual commands when only one secret needs changing.
+It prompts for a new password, saves both Pages secrets, and displays the shared value in that terminal. Copy that value into Apps Script's `API_SECRET` and the password manager, then retry the latest production deployment in Cloudflare. Use the individual commands when only one secret needs changing.
 
 ## Local development
 
@@ -526,20 +530,12 @@ npm run build
 Check that:
 
 - Your account has access to the intended **Pages** project.
+- GitHub is connected to the project and the latest production deployment was triggered by the intended commit on `main`.
 - `wrangler.toml` contains `pages_build_output_dir = "./dist"`.
 - The build produces `dist/index.html`, the public scripts and stylesheet, and `dist/_worker.js`.
-- You deployed to `main`, not a preview branch.
-- The command reported **Deployment complete**, not just an upload.
+- The Cloudflare build reported **Success** and deployed the intended commit.
 
-Use:
-
-```sh
-npm run deploy -- --branch main --project-name philosophy-seminars-site
-```
-
-A plain `wrangler deploy` command uses the Workers workflow. `package.json` uses `wrangler pages deploy` for this site.
-
-If new-project creation was delegated to Workers, use the creation command with `--force` from Step 5. Existing Pages projects do not need recreating.
+Use GitHub pushes to `main` for production deployment. Use a pull request or another branch to inspect a preview deployment.
 
 If `npm ci` fails, check the Node version before changing dependencies. If PowerShell blocks `npm.ps1` or `npx.ps1`, use `npm.cmd` or `npx.cmd` for those commands. If the local port is occupied, stop the previous server or choose an unused port for Wrangler.
 
@@ -562,7 +558,7 @@ The archive is newest first; further upcoming seminars are earliest first. Both 
 2. Run `npx wrangler pages secret list --project-name philosophy-seminars-site` and confirm production has `ADMIN_PASSWORD`.
 3. Use the editor password, not the shared write secret.
 4. If it is unknown, follow [Reset the admin password](#reset-the-admin-password).
-5. After changing a secret, deploy, reload, and sign in again. Allow cookies for the site.
+5. After changing a secret, retry the latest production deployment in Cloudflare, reload, and sign in again. Allow cookies for the site.
 
 If the editor reports **The editor is temporarily unavailable**, check that the production password exists. A working public page does not prove login is configured.
 
@@ -570,11 +566,11 @@ If the editor reports **The editor is temporarily unavailable**, check that the 
 
 Check these in order:
 
-1. Production has `APPS_SCRIPT_SECRET`, and it exactly matches the write service's `API_SECRET`. Restore it from the existing property if uncertain, then deploy.
+1. Production has `APPS_SCRIPT_SECRET`, and it exactly matches the write service's `API_SECRET`. Restore it from the existing property if uncertain, then retry the latest Pages deployment.
 2. `GOOGLE_APPS_SCRIPT_URL` is the deployed `/exec` address and returns the response shown in Step 3, not a sign-in page.
 3. The web app executes as an account allowed to edit the spreadsheet and permits access by **Anyone**. Managed Google accounts can restrict this setting; the account owner must resolve that restriction.
 4. `SHEET_ID` and `SHEET_NAME` identify the spreadsheet and tab used by the CSV address. A wrong tab name can cause writes to a different, newly created tab.
-5. If write-service code changed, publish a new deployment version. If its address changed, update `wrangler.toml` and deploy Pages.
+5. If write-service code changed, publish a new Apps Script deployment version. If its address changed, update `wrangler.toml` and push that change to `main`.
 6. Check required headers and completely blank rows between records.
 
 The website deliberately shows plain-language failures rather than service internals. A generic save error can mean a secret mismatch, permission problem, old deployment, or wrong address. Before retrying a failed **Add seminar**, refresh the list and spreadsheet to check whether the record was already added.
@@ -625,11 +621,9 @@ A Pages rollback restores website code. It does not restore deleted seminar rows
 | `dist/` | Generated output, rebuilt before deployment |
 | `.wrangler/` | Local state and temporary files, ignored by Git |
 
-## Optional GitHub-triggered deployments
+## GitHub and Cloudflare Pages
 
-The current project uses Direct Upload. Cloudflare requires a **new Pages project** to adopt Git integration; the existing Direct Upload project cannot simply be switched. See [Direct Upload limitations](https://developers.cloudflare.com/pages/get-started/direct-upload/).
-
-For a new Pages project connected to this repository, use:
+The GitHub repository is connected to the `philosophy-seminars-site` Pages project. These are the project's required build settings:
 
 | Setting | Value |
 | --- | --- |
@@ -639,4 +633,6 @@ For a new Pages project connected to this repository, use:
 | Build output directory | `dist` |
 | Root directory | Repository root |
 
-Configure its service addresses and secrets, and update the repository's Pages project name to match. Check the new project's Pages address and editor before moving the custom hostname and CNAME to its actual `pages.dev` address. Commit and push the production source before relying on automatic builds.
+Keep `ADMIN_PASSWORD` and `APPS_SCRIPT_SECRET` configured as encrypted production secrets in Cloudflare Pages. `GOOGLE_SHEET_CSV_URL` and `GOOGLE_APPS_SCRIPT_URL` are runtime variables in [wrangler.toml](wrangler.toml). Do not add secret values to GitHub, commit them to the repository, or put them in this README. If previews need isolated data, configure separate preview variables and secrets in Cloudflare before enabling editor writes on preview deployments.
+
+For each normal release, merge or push to `main` and confirm the Cloudflare deployment succeeds. Use the preview URL attached to a pull request to review changes before merging. Cloudflare's [Git integration guide](https://developers.cloudflare.com/pages/configuration/git-integration/) documents branch builds, preview deployments, and build settings.

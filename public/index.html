@@ -30,12 +30,12 @@
     <div class="hero-grid">
       <div class="hero-copy-block">
         <p class="eyebrow">Research seminar series</p>
-        <h1 class="hero-title">Research Seminar of the <em>Early Modern Lab</em></h1>
+        <h1 class="hero-title">Research Seminar of the <a href="https://www.utn.de/en/departments/department-liberal-arts-and-social-sciences/early-modern/" target="_blank" rel="noopener noreferrer"><em>Early Modern Lab</em></a></h1>
         <p class="hero-copy">
           Conversations on early modern philosophy, the sciences, and the many forms in which ideas travelled.
         </p>
         <p class="host-inline">
-          Convened by <a class="speaker-portfolio-link" href="https://danajalobeanu.com/" target="_blank" rel="noopener noreferrer">Prof. Dana Jalobeanu</a>
+          Convened by <a class="speaker-portfolio-link" href="https://danajalobeanu.com/" target="_blank" rel="noopener noreferrer">Prof. Dana Jalobeanu</a><span id="researcher-conveners"></span>
         </p>
         <div class="hero-notes" role="group" aria-label="Seminar overview">
           <div class="hero-note">
@@ -84,8 +84,36 @@
   </main>
 
   <footer class="container footer">
-    <p>&copy; <span id="copyright-year"></span> Early Modern Lab.</p>
-    <a class="quiet-link" href="./admin.html">Manage seminars</a>
+    <div class="footer-links">
+      <section class="footer-column" aria-labelledby="footer-people">
+        <h2 id="footer-people">People</h2>
+        <a href="https://danajalobeanu.com/" target="_blank" rel="noopener noreferrer">Dana Jalobeanu · profile &amp; contact</a>
+        <div id="footer-researchers" class="footer-researchers" aria-live="polite"></div>
+      </section>
+      <section class="footer-column" aria-labelledby="footer-events">
+        <h2 id="footer-events">Events</h2>
+        <a href="#program">Upcoming seminars</a>
+        <a href="#past-list">Seminar archive</a>
+        <a href="https://www.utn.de/en/departments/department-liberal-arts-and-social-sciences/early-modern/" target="_blank" rel="noopener noreferrer">Early Modern Lab · UTN</a>
+        <a href="./admin.html">Manage seminars</a>
+      </section>
+      <section class="footer-column" aria-labelledby="footer-about">
+        <h2 id="footer-about">About &amp; image credits</h2>
+        <a href="https://ark.cudl.lib.cam.ac.uk/ark:/12090/cula/84mqfh0n4" target="_blank" rel="noopener noreferrer">Newton Papers · MS Add. 3958</a>
+        <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener noreferrer">Backdrop image license · CC BY-NC 4.0</a>
+        <details class="footer-details">
+          <summary>Manuscript details</summary>
+          <p>Isaac Newton, MS Add. 3958, Cambridge University Library. Newton Papers; England, c. 1665–1672; English and Latin; paper, 96 ff. From the Portsmouth Collection, donated in 1872. ARK: ark:/12090/cula/84mqfh0n4.</p>
+          <p>Subjects: Science — Mathematics. Donor: Isaac Newton Wallop, Earl of Portsmouth (1825–1891). Record by Michael Hawkins, Yvonne Santacreu, Robert Iliffe, and Huw Jones.</p>
+          <p>Bibliography: A. Rupert Hall and Marie Boas Hall (eds), <em>Unpublished Scientific Papers of Isaac Newton</em> (1962); John Herivel, <em>The Background to Newton’s Principia</em> (1965); D. T. Whiteside (ed.), <em>The Mathematical Papers of Isaac Newton</em>, vol. 1 (1967).</p>
+        </details>
+      </section>
+    </div>
+    <p class="footer-contribution">Website developed by <a href="https://sagnikdas.com/" target="_blank" rel="noopener noreferrer">Sagnik Das</a> · Student Assistant (LiAS, UTN) 2026–2027</p>
+    <div class="footer-legal">
+      <p>© <span id="copyright-year"></span> Prof. Dana Jalobeanu. All rights reserved.</p>
+      <p>Seminar information may be shared with credit to the Early Modern Lab (LiAS, UTN) and a link to this website.</p>
+    </div>
   </footer>
 
   <script src="./app.js" defer></script>

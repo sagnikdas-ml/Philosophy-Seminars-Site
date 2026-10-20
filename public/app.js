@@ -1,4 +1,5 @@
 const SEMINARS_API_ENDPOINT = "/api/seminars.csv";
+const RESEARCHERS_API_ENDPOINT = "/api/researchers";
 const DEFAULT_TIME_ZONE = "Europe/Berlin";
 const DEFAULT_TIME_ZONE_LABEL = "CEST/CET";
 const DEFAULT_EVENT_DURATION_MINUTES = 90;
@@ -17,6 +18,8 @@ const copyrightYear = document.getElementById("copyright-year");
 const heroFeatureCard = document.getElementById("hero-feature-card");
 const heroSeriesCount = document.getElementById("hero-series-count");
 const heroNextDate = document.getElementById("hero-next-date");
+const researcherConveners = document.getElementById("researcher-conveners");
+const footerResearchers = document.getElementById("footer-researchers");
 const DEFAULT_UPCOMING_EMPTY_TEXT =
   upcomingEmpty?.textContent || "No upcoming seminars yet";
 const DEFAULT_PAST_EMPTY_TEXT =
@@ -31,6 +34,7 @@ init().catch((err) => {
   upcomingEmpty.classList.remove("hidden");
   pastEmpty.classList.add("hidden");
 });
+loadResearchers();
 
 function showLoadingState() {
   if (upcomingEmpty) {
@@ -70,6 +74,48 @@ async function loadCsvFromApi(source) {
   }
 
   return csvText;
+}
+
+async function loadResearchers() {
+  if (!researcherConveners || !footerResearchers) return;
+  try {
+    const response = await fetch(RESEARCHERS_API_ENDPOINT, { cache: "no-store" });
+    if (!response.ok) throw new Error("Researcher directory unavailable");
+    const result = await response.json();
+    if (!Array.isArray(result.researchers)) throw new Error("Invalid researcher directory");
+    renderResearchers(result.researchers);
+  } catch {
+    footerResearchers.textContent = "Researcher profiles are temporarily unavailable.";
+  }
+}
+
+function renderResearchers(researchers) {
+  const valid = researchers.filter((item) => item && item.full_name && isHttpUrl(item.portfolio_link));
+  researcherConveners.replaceChildren();
+  footerResearchers.replaceChildren();
+
+  valid.forEach((researcher, index) => {
+    researcherConveners.append(document.createTextNode(index === 0 ? ", " : index === valid.length - 1 ? ", and " : ", "));
+    researcherConveners.append(createResearcherAnchor(researcher, false));
+
+    const footerLink = createResearcherAnchor(researcher, true);
+    footerResearchers.append(footerLink);
+  });
+}
+
+function createResearcherAnchor(researcher, includeContactLabel) {
+  const link = document.createElement("a");
+  link.href = researcher.portfolio_link;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  const name = `${researcher.title ? `${researcher.title} ` : ""}${researcher.full_name}`;
+  link.textContent = includeContactLabel ? `${name} · profile & contact` : name;
+  if (includeContactLabel) link.className = "speaker-portfolio-link";
+  return link;
+}
+
+function isHttpUrl(value) {
+  try { return ["http:", "https:"].includes(new URL(value).protocol); } catch { return false; }
 }
 
 function parseCsv(csvText) {
@@ -408,14 +454,15 @@ function renderCardGroup(target, seminars, isPast) {
       const group = document.createElement("section");
       group.className = "seminar-month-group";
 
-      const heading = document.createElement("h3");
+      const heading = document.createElement("h4");
       heading.className = "seminar-month-heading";
       heading.id = `${target.id}-${monthKey}`;
-      heading.textContent = new Intl.DateTimeFormat("en-GB", {
+      const monthLabel = new Intl.DateTimeFormat("en-GB", {
         timeZone: seminar.timeZone,
         month: "long",
         year: "numeric",
       }).format(seminar.startAt);
+      heading.textContent = `${monthLabel} (${getSemesterInfo(seminar.dateIso)})`;
       group.setAttribute("aria-labelledby", heading.id);
 
       monthCards = document.createElement("div");
@@ -433,6 +480,11 @@ function renderCardGroup(target, seminars, isPast) {
 
     monthCards.appendChild(card);
   });
+}
+
+function getSemesterInfo(dateIso) {
+  const month = Number(dateIso.slice(5, 7));
+  return month >= 4 && month <= 9 ? "SuSe" : "WiSe";
 }
 
 function renderHeroFeature(upcoming, archivedCount) {

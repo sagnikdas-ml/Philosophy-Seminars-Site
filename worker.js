@@ -10,16 +10,19 @@ const EVENT_FIELD_LABELS = {
   speaker_detail: "Affiliation", speaker_portfolio: "Speaker website", time: "Start time",
   end_time: "End time", timezone: "Time zone", venue: "Venue", abstract: "Abstract", published: "Visibility",
 };
+const RESEARCHER_FIELDS = ["title", "full_name", "portfolio_link"];
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
     if (url.pathname === "/api/seminars.csv") return handlePublicFeed(request, env);
+    if (url.pathname === "/api/researchers") return handlePublicResearchers(request, env);
     if (url.pathname === "/api/admin/login") return handleLogin(request, env);
     if (url.pathname === "/api/admin/logout") return handleLogout(request, env);
     if (url.pathname === "/api/admin/session") return handleSession(request, env);
     if (url.pathname === "/api/admin/seminars") return handleAdminSeminars(request, env);
+    if (url.pathname === "/api/admin/researchers") return handleAdminResearchers(request, env);
 
     const asset = await env.ASSETS.fetch(request);
     return withSecurityHeaders(asset, url.pathname);
@@ -50,6 +53,107 @@ async function handlePublicFeed(request, env) {
   } catch {
     return textResponse("Seminars could not be loaded. Please try again.", 502);
   }
+}
+
+async function handlePublicResearchers(request, env) {
+  if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed("GET, HEAD");
+  if (!env.GOOGLE_APPS_SCRIPT_URL) return jsonResponse({ error: "Researcher information is temporarily unavailable." }, 503);
+  try {
+    const separator = env.GOOGLE_APPS_SCRIPT_URL.includes("?") ? "&" : "?";
+    const response = await fetch(`${env.GOOGLE_APPS_SCRIPT_URL}${separator}view=researchers`, { headers: { accept: "application/json" } });
+    const result = await response.json();
+    if (!response.ok || !result.ok || !Array.isArray(result.researchers)) throw new Error("Invalid researcher response");
+    const researchers = result.researchers.map((item) => ({
+      title: String(item.title || "").trim(),
+      full_name: String(item.full_name || "").trim(),
+      portfolio_link: String(item.portfolio_link || "").trim(),
+    }));
+    const headers = { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60", "x-content-type-options": "nosniff" };
+    return request.method === "HEAD"
+      ? new Response(null, { status: 200, headers })
+      : jsonResponse({ researchers }, 200, { "cache-control": "public, max-age=60" });
+  } catch {
+    return jsonResponse({ error: "Researcher information is temporarily unavailable." }, 502);
+  }
+}
+
+async function handleAdminResearchers(request, env) {
+  if (!["GET", "POST", "PUT", "DELETE"].includes(request.method)) return methodNotAllowed("GET, POST, PUT, DELETE");
+  if (!(await isAuthenticated(request, env))) return jsonResponse({ error: "Please sign in to manage researchers." }, 401);
+  if (request.method !== "GET" && !sameOrigin(request)) return jsonResponse({ error: "Please refresh the page and try again." }, 403);
+  if (!env.GOOGLE_APPS_SCRIPT_URL || !env.APPS_SCRIPT_SECRET) {
+    return jsonResponse({ error: "Researcher changes cannot be saved right now. Please try again later." }, 503);
+  }
+
+  const operation = request.method === "GET" ? "listResearchers" : request.method === "POST" ? "createResearcher" : request.method === "PUT" ? "updateResearcher" : "deleteResearcher";
+  const payload = { operation, secret: env.APPS_SCRIPT_SECRET };
+  if (request.method !== "GET") {
+    const body = await readJson(request);
+    if (!body.ok) return jsonResponse({ error: body.error }, body.status);
+    if (request.method === "DELETE") {
+      const identity = validateResearcherIdentity(body.value);
+      if (!identity.ok) return jsonResponse({ error: identity.error }, 400);
+      payload.id = identity.id;
+      payload.fingerprint = identity.fingerprint;
+    } else {
+      const researcher = validateResearcher(body.value.researcher);
+      if (!researcher.ok) return jsonResponse({ error: researcher.error }, 400);
+      payload.researcher = researcher.value;
+      if (request.method === "PUT") {
+        const identity = validateResearcherIdentity(body.value);
+        if (!identity.ok) return jsonResponse({ error: identity.error }, 400);
+        payload.id = identity.id;
+        payload.fingerprint = identity.fingerprint;
+      }
+    }
+  }
+
+  try {
+    const result = await callAppsScript(env.GOOGLE_APPS_SCRIPT_URL, payload);
+    if (request.method === "GET") {
+      const researchers = await Promise.all((result.researchers || []).map(async (item) => ({
+        ...Object.fromEntries(RESEARCHER_FIELDS.map((field) => [field, String(item[field] || "").trim()])),
+        id: String(item.id || ""),
+        _fingerprint: await fingerprintResearcher(item),
+      })));
+      return jsonResponse({ researchers });
+    }
+    return jsonResponse({ ok: true }, request.method === "POST" ? 201 : 200);
+  } catch (error) {
+    const message = ["That researcher no longer exists. Refresh and try again.", "This researcher changed since it was loaded. Refresh before editing."].includes(error.message)
+      ? error.message
+      : `The researcher could not be ${request.method === "DELETE" ? "removed" : "saved"}. Please try again.`;
+    return jsonResponse({ error: message }, 502);
+  }
+}
+
+function validateResearcher(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return { ok: false, error: "Please enter the researcher details." };
+  const researcher = Object.fromEntries(RESEARCHER_FIELDS.map((field) => [field, String(input[field] ?? "").trim()]));
+  if (researcher.title.length > 120 || researcher.full_name.length > 200 || researcher.portfolio_link.length > 1000) {
+    return { ok: false, error: "Researcher information is too long. Please shorten it." };
+  }
+  if (!researcher.full_name || !researcher.portfolio_link) return { ok: false, error: "Full name and portfolio link are required." };
+  try {
+    const parsed = new URL(researcher.portfolio_link);
+    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+  } catch { return { ok: false, error: "Please enter a complete portfolio link." }; }
+  return { ok: true, value: researcher };
+}
+
+function validateResearcherIdentity(input) {
+  const id = String(input?.id || "");
+  const fingerprintValue = String(input?.fingerprint || "");
+  if (!id || id.length > 100 || !/^[a-f0-9]{64}$/.test(fingerprintValue)) {
+    return { ok: false, error: "This researcher could not be found. Refresh the list and try again." };
+  }
+  return { ok: true, id, fingerprint: fingerprintValue };
+}
+
+async function fingerprintResearcher(researcher) {
+  const canonical = RESEARCHER_FIELDS.map((field) => String(researcher[field] || "").trim()).join("\u001f");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return bytesToHex(new Uint8Array(digest));
 }
 
 async function handleLogin(request, env) {
