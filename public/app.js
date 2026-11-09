@@ -18,8 +18,11 @@ const copyrightYear = document.getElementById("copyright-year");
 const heroFeatureCard = document.getElementById("hero-feature-card");
 const heroSeriesCount = document.getElementById("hero-series-count");
 const heroNextDate = document.getElementById("hero-next-date");
+const heroNotification = document.getElementById("hero-notification");
+const scrollProgressBar = document.getElementById("scroll-progress-bar");
 const researcherConveners = document.getElementById("researcher-conveners");
 const convenersLine = document.getElementById("conveners-line");
+const coOrganizersLine = document.getElementById("co-organizers-line");
 const footerResearchers = document.getElementById("footer-researchers");
 const DEFAULT_UPCOMING_EMPTY_TEXT =
   upcomingEmpty?.textContent || "No upcoming seminars yet";
@@ -28,6 +31,7 @@ const DEFAULT_PAST_EMPTY_TEXT =
 
 setCurrentYear();
 showLoadingState();
+initScrollProgress();
 
 init().catch((err) => {
   console.error("Unable to load seminars", err);
@@ -111,6 +115,7 @@ function renderResearchers(researchers) {
     footerResearchers.append(footerLink);
   });
   convenersLine?.classList.remove("hidden");
+  coOrganizersLine?.classList.remove("hidden");
 }
 
 function createResearcherAnchor(researcher, includeContactLabel) {
@@ -503,6 +508,7 @@ function renderHeroFeature(upcoming, archivedCount) {
   }
 
   heroSeriesCount.textContent = buildSeriesCountLabel(upcoming.length, archivedCount);
+  startHeroNotificationRotation(upcoming);
 
   if (upcoming.length === 0) {
     heroNextDate.textContent = "To be announced";
@@ -535,6 +541,51 @@ function renderHeroFeature(upcoming, archivedCount) {
     ${abstractHtml}
     ${actionsHtml ? `<div class="hero-feature-actions">${actionsHtml}</div>` : ""}
   `;
+}
+
+function startHeroNotificationRotation(upcoming) {
+  if (!heroNotification) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const messages = [
+    "Welcome to the EM Lab and Classics Lab Seminars.",
+    upcoming.length
+      ? `The next seminar is by ${upcoming[0].speaker} on “${upcoming[0].title}”.`
+      : "The next seminar will be announced soon. Check back for updates.",
+    ...(upcoming.length
+      ? [`Save the date: ${formatHeroDate(upcoming[0].startAt, upcoming[0].timeZone)}. Click “Add to calendar” to add this seminar to your calendar.`]
+      : []),
+    "Missed a talk? Browse past seminars in the archive below.",
+    "Scroll down to see upcoming talks and past seminars.",
+  ];
+  let currentIndex = 0;
+
+  window.setInterval(() => {
+    currentIndex = (currentIndex + 1) % messages.length;
+    heroNotification.classList.add("is-changing");
+    window.setTimeout(() => {
+      heroNotification.textContent = messages[currentIndex];
+      heroNotification.classList.remove("is-changing");
+    }, 450);
+  }, 5000);
+}
+
+function initScrollProgress() {
+  if (!scrollProgressBar) return;
+  let updateQueued = false;
+  const update = () => {
+    const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
+    scrollProgressBar.style.transform = `scaleY(${Math.min(1, Math.max(0, progress))})`;
+    updateQueued = false;
+  };
+  const queueUpdate = () => {
+    if (updateQueued) return;
+    updateQueued = true;
+    window.requestAnimationFrame(update);
+  };
+  window.addEventListener("scroll", queueUpdate, { passive: true });
+  window.addEventListener("resize", queueUpdate);
+  update();
 }
 
 function buildSeminarCardMarkup(seminar, isPast) {

@@ -14,6 +14,7 @@
 </head>
 <body>
   <a class="skip-link" href="#program">Skip to program</a>
+  <div class="scroll-progress" aria-hidden="true"><span id="scroll-progress-bar"></span></div>
   <div class="page-wash" aria-hidden="true"></div>
 
   <header class="hero container">
@@ -30,7 +31,7 @@
 
     <div class="hero-grid">
       <div class="hero-copy-block">
-        <p class="eyebrow">Research seminar series</p>
+        <p class="eyebrow">Technische Universität Nürnberg</p>
         <h1 class="hero-title">Research Seminar of the <em><a href="https://www.utn.de/en/departments/department-liberal-arts-and-social-sciences/early-modern/" target="_blank" rel="noopener noreferrer">Early Modern Lab</a> <span class="lab-conjunction">and</span> <a href="https://www.utn.de/en/departments/department-liberal-arts-and-social-sciences/classics/" target="_blank" rel="noopener noreferrer">Classics Lab</a></em></h1>
         <p class="hero-copy">
           Conversations on early modern philosophy, the sciences, and the many forms in which ideas travelled.
@@ -38,7 +39,7 @@
         <p class="host-inline hidden" id="conveners-line" aria-live="polite">
           Convened by <span id="researcher-conveners"></span>
         </p>
-        <p class="host-inline">Co-organizers: Prof. Gyburg Uhlmann and Dr. Tobias Hirsch</p>
+        <p class="host-inline hidden" id="co-organizers-line">Co-organizers: Prof. Gyburg Uhlmann and Dr. Tobias Hirsch</p>
         <div class="hero-notes" role="group" aria-label="Seminar overview">
           <div class="hero-note">
             <span class="hero-note-label">Current series</span>
@@ -59,6 +60,11 @@
         </div>
       </aside>
     </div>
+    <section class="announcement-box" aria-labelledby="announcement-title">
+      <p class="announcement-label" id="announcement-title">Announcements</p>
+      <p id="hero-notification" class="announcement-message" aria-live="polite">Welcome to the EM Lab and Classics Lab Seminars.</p>
+      <span class="announcement-spark" aria-hidden="true"></span>
+    </section>
   </header>
 
   <main id="program" class="container">
