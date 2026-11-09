@@ -98,6 +98,7 @@ h3, h4 { font-size: clamp(1.16rem, 2vw, 1.45rem); }
 }
 .hero-title { max-width: 14ch; font-weight: 400; }
 .hero-title em { color: var(--teal); font-weight: 400; }
+.hero-title .lab-conjunction { color: var(--ink); }
 .hero-title a { text-decoration: none; }
 .hero-copy { max-width: 52ch; margin: 1.25rem 0 .8rem; color: #4d595b; font-family: "Merriweather", Georgia, serif; font-size: 1.02rem; }
 .host-inline { margin: 0; color: var(--muted); font-size: .95rem; }
@@ -114,6 +115,7 @@ h3, h4 { font-size: clamp(1.16rem, 2vw, 1.45rem); }
 .hero-feature-card { position: relative; z-index: 1; display: grid; gap: .65rem; margin-top: 2.3rem; }
 .hero-feature-card p { margin: 0; }
 .hero-feature-title { font-family: "Merriweather", Georgia, serif; font-size: clamp(1.35rem, 2.8vw, 2rem); }
+.panel-hero .speaker, .panel-hero .speaker a { color: white; font-weight: 700; }
 .hero-feature-meta, .card-meta { display: flex; flex-wrap: wrap; gap: .4rem; color: var(--muted); font-size: .88rem; }
 .panel-hero .hero-feature-meta, .panel-hero .speaker-detail, .panel-hero .hero-feature-copy { color: #d9e8e6; }
 .hero-feature-copy { overflow: auto; max-height: 10rem; padding-right: .3rem; overflow-wrap: anywhere; }
